@@ -49,9 +49,9 @@ MIDDLEWARE_CLASSES = (
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 )
 
-ROOT_URLCONF = 'ga.urls'
+ROOT_URLCONF = 'personal_time_cards.urls'
 
-WSGI_APPLICATION = 'ga.wsgi.application'
+WSGI_APPLICATION = 'personal_time_cards.wsgi.application'
 
 
 # Database
