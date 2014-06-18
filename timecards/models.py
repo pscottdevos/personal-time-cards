@@ -1,8 +1,29 @@
-from datetime import date, datetime, time
+from datetime import date, datetime, time, timedelta
 from django.core import exceptions
 from django.db import models
+from django.db.models import Q
 
 # Create your models here.
+
+def subtract_from_date(dt, months=0, weeks=0, days=0):
+
+    assert months >= 0
+    assert weeks >= 0
+    assert days >= 0
+    if months:
+        def days_in_prior_month(dt, months):
+            # the day of the month of the day prior to the first day of THIS month
+            # is the number of days in LAST month
+            last_day_of_last_month = dt - timedelta(days=dt.day)
+            if months == 1:
+                return last_day_of_last_month.day    
+            else:
+                return (
+                    last_day_of_last_month.day +
+                    days_in_prior_month(last_day_of_last_month, months-1)
+                )
+        days += days_in_prior_month(dt, months)
+    return dt - timedelta(days=days, weeks=weeks)
 
 
 class TcProject(models.Model):
@@ -28,6 +49,7 @@ class TcCode(models.Model):
     """Codes to bill against"""
 
     STATUS_CHOICES = (
+        ('OVERHEAD', 'Overhead'),
         ('PROPOSED', 'Proposed'),
         ('PRE', 'Pre-production'),
         ('POST', 'Post-production'),
@@ -41,9 +63,22 @@ class TcCode(models.Model):
         max_length=10, choices=STATUS_CHOICES, blank=False
     )
 
-    def monthly_hours_to_date(self):
-        m1 = date(date.today().year, date.today().month, 1)
-        cards = TimeCard.objects.filter(code=self, date__gte=m1, date__lte=date.today())
+    @property
+    def hours_last_month(self):
+        today = date.today()
+        m1 = subtract_from_date(today, months=1)
+        m1 = date(m1.year, m1.month, 1)
+        m2 = today - timedelta(today.day)
+        cards = TimeCard.objects.filter(code=self, date__gte=m1, date__lte=m2)
+        return round(sum([c.hours for c in cards]), 2)
+
+    @property
+    def hours_last_week(self):
+        today = date.today()
+        w2 = today - timedelta(today.weekday()) - timedelta(days=2) # Monday.weekday() = 0 so EOW will be Saturday
+        w1 = w2 - timedelta(days=6)
+        print w1, w2
+        cards = TimeCard.objects.filter(code=self, date__gte=w1, date__lte=w2)
         return round(sum([c.hours for c in cards]), 2)
 
     def __unicode__(self):
@@ -53,7 +88,7 @@ class TcCode(models.Model):
 class TimeCard(models.Model):
     """Time Card Entries"""
 
-    code = models.ForeignKey('TcCode')
+    code = models.ForeignKey('TcCode', limit_choices_to=~Q(project__status='CLOSED'))
     date = models.DateField(blank=False)
     start = models.TimeField(blank=True, unique_for_date='date')
     end = models.TimeField(blank=False, unique_for_date='date')
@@ -64,12 +99,6 @@ class TimeCard(models.Model):
         return round(
             (datetime.combine(self.date, self.end) - datetime.combine(self.date, self.start)).seconds/3600.0,
         2)
-
-    @property
-    def monthly_hours_for_code_to_date(self):
-        m1 = date(self.date.year, self.date.month, 1)
-        cards = TimeCard.objects.filter(code=self.code, date__gte=m1, date__lte=self.date)
-        return round(sum([c.hours for c in cards]), 2)
 
     @property
     def short_description(self):
