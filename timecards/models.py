@@ -43,6 +43,32 @@ class TcProject(models.Model):
     def __unicode__(self):
         return self.name
 
+    def _hours_in_week_last_month(self, week):
+        today = date.today()
+        m1 = subtract_from_date(today, months=1)
+        m1 = date(m1.year, m1.month, 1)
+        m2 = today - timedelta(today.day)
+        wstart = m1 + timedelta(weeks=(week - 1))
+        wstart = wstart if wstart < m2 else m2
+        wend = wstart + timedelta(days=6)
+        wend = wend if wend < m2 else m2
+        cards = TimeCard.objects.filter(code__project=self, date__gte=wstart, date__lte=wend)
+        return round(sum([c.hours for c in cards]), 2)
+
+    def hours_in_week_1_last_month(self):
+        return self._hours_in_week_last_month(1)
+
+    def hours_in_week_2_last_month(self):
+        return self._hours_in_week_last_month(2)
+
+    def hours_in_week_3_last_month(self):
+        return self._hours_in_week_last_month(3)
+
+    def hours_in_week_4_last_month(self):
+        return self._hours_in_week_last_month(4)
+
+    def hours_in_week_5_last_month(self):
+        return self._hours_in_week_last_month(5)
 
 
 class TcCode(models.Model):
