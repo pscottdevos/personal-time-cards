@@ -7,6 +7,7 @@ from django.db.models import Sum
 class TimeCardAdmin(admin.ModelAdmin):
     fields = ('date', 'start', 'end', 'code', 'description')
     list_display = fields + ( 'short_description', )
+    ordering = ('-date', '-start')
 
 class TcCodeAdmin(admin.ModelAdmin):
     fields = ('code', 'description', 'project', 'status')
