@@ -85,3 +85,5 @@ STATIC_URL = '/static/'
 
 SESSION_COOKIE_AGE = 1000000
 SESSION_SAVE_EVERY_REQUEST = True
+
+BUGZILLA_ROOT = 'https://www.bintouch.org/bugzilla'

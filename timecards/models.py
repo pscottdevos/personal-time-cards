@@ -1,4 +1,5 @@
 from datetime import date, datetime, time, timedelta
+from django.conf import settings
 from django.core import exceptions
 from django.db import models
 from django.db.models import Q
@@ -26,105 +27,20 @@ def subtract_from_date(dt, months=0, weeks=0, days=0):
     return dt - timedelta(days=days, weeks=weeks)
 
 
-class TcProject(models.Model):
-    """Projects to bill against"""
-
-    STATUS_CHOICES = (
-        ('PROPOSED', 'Proposed'),
-        ('ACTIVE', 'Active'),
-        ('CLOSED', 'Closed'),
-    )
-
-    name = models.CharField(max_length=50, unique=True, blank=False)
-    status = models.CharField(
-        max_length=10, choices=STATUS_CHOICES, blank=False
-    )
-
-    def __unicode__(self):
-        return self.name
-
-    def _hours_in_week_last_month(self, week):
-        today = date.today()
-        m1 = subtract_from_date(today, months=1)
-        m1 = date(m1.year, m1.month, 1)
-        m2 = today - timedelta(today.day)
-        wstart = m1 + timedelta(weeks=(week - 1))
-        wstart = wstart if wstart < m2 else m2
-        wend = wstart + timedelta(days=6)
-        wend = wend if wend < m2 else m2
-        cards = TimeCard.objects.filter(code__project=self, date__gte=wstart, date__lte=wend)
-        return round(sum([c.hours for c in cards]), 2)
-
-    def hours_in_week_1_last_month(self):
-        return self._hours_in_week_last_month(1)
-
-    def hours_in_week_2_last_month(self):
-        return self._hours_in_week_last_month(2)
-
-    def hours_in_week_3_last_month(self):
-        return self._hours_in_week_last_month(3)
-
-    def hours_in_week_4_last_month(self):
-        return self._hours_in_week_last_month(4)
-
-    def hours_in_week_5_last_month(self):
-        return self._hours_in_week_last_month(5)
-
-
-class TcCode(models.Model):
-    """Codes to bill against"""
-
-    STATUS_CHOICES = (
-        ('OVERHEAD', 'Overhead'),
-        ('PROPOSED', 'Proposed'),
-        ('PRE', 'Pre-production'),
-        ('POST', 'Post-production'),
-        ('CLOSED', 'Closed'),
-    )
-
-    code = models.CharField(max_length=10, blank=False)
-    description = models.CharField(max_length=255, blank=True)
-    project = models.ForeignKey('TcProject', blank=False)
-    status = models.CharField(
-        max_length=10, choices=STATUS_CHOICES, blank=False
-    )
-
-    @property
-    def hours_last_month(self):
-        today = date.today()
-        m1 = subtract_from_date(today, months=1)
-        m1 = date(m1.year, m1.month, 1)
-        m2 = today - timedelta(today.day)
-        cards = TimeCard.objects.filter(code=self, date__gte=m1, date__lte=m2)
-        return round(sum([c.hours for c in cards]), 2)
-
-    @property
-    def hours_last_week(self):
-        today = date.today()
-        w2 = today - timedelta(today.weekday()) - timedelta(days=2) # Monday.weekday() = 0 so EOW will be Saturday
-        w1 = w2 - timedelta(days=6)
-        print w1, w2
-        cards = TimeCard.objects.filter(code=self, date__gte=w1, date__lte=w2)
-        return round(sum([c.hours for c in cards]), 2)
-
-    def __unicode__(self):
-        return '%s: %s%s' % (self.project.name, self.code, ' - %s' % (self.description) if self.description else '')
-
-
 class TimeCard(models.Model):
     """Time Card Entries"""
 
-    code = models.ForeignKey('TcCode', limit_choices_to=~Q(project__status='CLOSED'))
+    bug = models.IntegerField(blank=True)
     date = models.DateField(blank=False)
     start = models.TimeField(blank=True, unique_for_date='date')
     end = models.TimeField(blank=False, unique_for_date='date')
     description = models.TextField(blank=True)
 
+
     @property
     def hours(self):
         return round(
-            (datetime.combine(self.date, self.end) - datetime.combine(self.date, self.start)).seconds/3600.0,
-        2)
+            (datetime.combine(self.date, self.end) - datetime.combine(self.date, self.start)).seconds/3600.0, 2)
 
     @property
     def short_description(self):
@@ -147,6 +63,14 @@ class TimeCard(models.Model):
             raise exceptions.ValidationError(
                 'End date must be greater than start date'
             )
+
+    @property
+    def url(self):
+        return '{0}/show_bug.cgi?id={1}'.format(settings.BUGZILLA_ROOT, self.bug)
+
+    def anchor(self):
+        return '<a href="{0}">{1}</a>'.format(self.url, self.bug)
+
 
     def save(self):
         if not self.start:
