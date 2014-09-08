@@ -37,6 +37,7 @@ INSTALLED_APPS = (
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'django_extensions',
+    'south',
     'timecards',
 )
 
@@ -86,4 +87,41 @@ STATIC_URL = '/static/'
 SESSION_COOKIE_AGE = 1000000
 SESSION_SAVE_EVERY_REQUEST = True
 
+LOGGING ={
+    'version': 1,
+    'disable_existing_loggers': True,
+
+    'handlers': {
+        'stdout': {
+            'class': 'logging.StreamHandler',
+            'level': 'DEBUG',
+            'formatter': 'default',
+            'stream': 'ext://sys.stdout',
+        },
+        'file': {
+            'class': 'logging.FileHandler',
+            'level': 'DEBUG',
+            'formatter': 'default',
+            'filename': os.path.join(BASE_DIR, 'debug.log'),
+        },
+    },
+
+    'formatters': {
+        'default': {
+            'format': '%(levelname)s %(asctime)s %(module)s %(message)s'
+        },
+    },
+
+    'root': {
+        'level': 'INFO',
+        'handlers': ['stdout']
+    },
+
+}
+
 BUGZILLA_ROOT = 'https://www.bintouch.org/bugzilla'
+
+try:
+    from local_settings import *
+except:
+    print "NO LOCAL SETTINGS!"
