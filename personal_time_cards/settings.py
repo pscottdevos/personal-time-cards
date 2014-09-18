@@ -119,7 +119,7 @@ LOGGING ={
 
 }
 
-BUGZILLA_ROOT = 'https://www.bintouch.org/bugzilla'
+BUGZILLA_ROOT = 'https://bugzilla.alpineaccessu.com'
 
 try:
     from local_settings import *
