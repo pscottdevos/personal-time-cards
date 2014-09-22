@@ -9,6 +9,7 @@ from django.db import models
 from django.db.models import Q
 
 logger = logging.getLogger(__name__)
+TIMEOUT = 2
 
 # Create your models here.
 
@@ -68,7 +69,9 @@ class TimeCard(models.Model):
                 'Bugzilla_password': settings.BUGZILLA_PASSWORD,
             } ]),
         }
-        response = requests.get(url=url, params=data, verify=False)
+        response = requests.get(
+            url=url, params=data, verify=False, timeout=TIMEOUT
+        )
         return json.loads(response.text)['result']
 
     def bug_post(self, rpc_method, params):
@@ -84,7 +87,9 @@ class TimeCard(models.Model):
                 'Bugzilla_password': settings.BUGZILLA_PASSWORD,
             } ],
         })
-        return requests.post(url=url, headers=headers, data=data, verify=False)
+        return requests.post(
+            url=url, headers=headers, data=data, verify=False, timeout=TIMEOUT
+        )
 
     def clean(self):
         priors = self.priors()
@@ -135,6 +140,23 @@ class TimeCard(models.Model):
             if not self.bug_summary or self.bug_summary == self.NO_BUG_SUMMARY:
                 try:
                     self.bug_summary = self.get_bug_info()['summary'][:255]
+                    # hey it worked! lets see if there is anything else that could use updating while we are at it.
+                    try:
+                        needy_cards = TimeCard.objects.exclude(bug=None).filter(
+                            Q(bug_summary=None) | Q(bug_summary=self.NO_BUG_SUMMARY)
+                        )
+                        for card in needy_cards:
+                            card.get_bug_info()['summary'][:255]
+                            card.save()
+                        needy_cards = TimeCards.objects.filter(add_to_bug_comments=True).exclude(
+                            bug_comment_added=True
+                        ).exclude(Q(description='') | Q(description=None))
+                        for card in needy_cards:
+                            card.bug_comment_added = card.post_bug_comment(self.description.strip()) == 200
+                            card.save()
+                    except Exception:
+                        import traceback
+                        logger.error(traceback.format_exc())
                 except Exception:
                     import traceback
                     logger.error(traceback.format_exc())
