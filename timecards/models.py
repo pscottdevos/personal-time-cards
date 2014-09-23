@@ -129,7 +129,9 @@ class TimeCard(models.Model):
 
     NO_BUG_SUMMARY = "<bug summary not available at this time>"
 
-    def save(self):
+    def save(self, handle_needy_cards=True):
+        """needy_cards refers to other cards that have a bug number but either need  a bug description
+        or need to create a comment"""
         if not self.start:
             priors = self.priors()
             if priors:
@@ -142,18 +144,18 @@ class TimeCard(models.Model):
                     self.bug_summary = self.get_bug_info()['summary'][:255]
                     # hey it worked! lets see if there is anything else that could use updating while we are at it.
                     try:
-                        needy_cards = TimeCard.objects.exclude(bug=None).filter(
+                        needy_cards = TimeCard.objects.exclude(bug=None).exclude(id=self.id).filter(
                             Q(bug_summary=None) | Q(bug_summary=self.NO_BUG_SUMMARY)
                         )
                         for card in needy_cards:
-                            card.get_bug_info()['summary'][:255]
-                            card.save()
-                        needy_cards = TimeCards.objects.filter(add_to_bug_comments=True).exclude(
+                            card.bug_summary = card.get_bug_info()['summary'][:255]
+                            card.save(handle_needy_cards=False)
+                        needy_cards = TimeCard.objects.exclude(id=self.id).filter(add_to_bug_comments=True).exclude(
                             bug_comment_added=True
                         ).exclude(Q(description='') | Q(description=None))
                         for card in needy_cards:
                             card.bug_comment_added = card.post_bug_comment(self.description.strip()) == 200
-                            card.save()
+                            card.save(handle_needy_cards=False)
                     except Exception:
                         import traceback
                         logger.error(traceback.format_exc())
