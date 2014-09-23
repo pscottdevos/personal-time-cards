@@ -119,6 +119,8 @@ LOGGING ={
 
 }
 
+BUGZILLA_USERNAME = ''
+BUGZILLA_PASSWORD = ''
 BUGZILLA_ROOT = 'https://bugzilla.alpineaccessu.com'
 
 try:
