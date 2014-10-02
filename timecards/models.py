@@ -1,3 +1,4 @@
+import csv
 import json
 import logging
 import requests
@@ -46,6 +47,34 @@ class TimeCard(models.Model):
     end = models.TimeField(blank=False, unique_for_date='date')
     description = models.TextField(blank=True)
 
+    @classmethod
+    def get_hours_by_bug(cls, start_date, end_date):
+        tcs = cls.objects.filter(date__gte=start_date, date__lte=end_date)
+        hours_dict = {}
+        for tc in tcs:
+                hours_dict[tc.bug] = hours_dict.get(tc.bug, 0) + tc.hours
+        hours = []
+        for key in sorted(hours_dict.keys()):
+            if key is None:
+                summary = ''
+            else:
+                bugs = cls.bug_get(key, 'get')['bugs']
+                if bugs:
+                    summary = bugs[0]['summary'][:255]
+                else:
+                    summary = ''
+            hours.append((key or 'None', summary, hours_dict[key]))
+        return hours
+
+
+    @classmethod
+    def write_csv_timesheet(cls, filename, start_date, end_date):
+        with open(filename, 'wb') as f:
+            writer = csv.writer(f)
+            writer.writerow(('bug', 'summary', 'hours'))
+            writer.writerows(cls.get_hours_by_bug(start_date, end_date))
+
+
     @property
     def hours(self):
         return round(
@@ -59,12 +88,13 @@ class TimeCard(models.Model):
     def url(self):
         return '{0}/show_bug.cgi?id={1}'.format(settings.BUGZILLA_ROOT, self.bug)
 
-    def bug_get(self, rpc_method, params=None):
+    @classmethod
+    def bug_get(cls, bug, rpc_method, params=None):
         url = '{0}/jsonrpc.cgi'.format(settings.BUGZILLA_ROOT)
         data = {
             'method': 'Bug.' + rpc_method,
             'params': json.dumps([ {
-                'ids': [self.bug],
+                'ids': [bug],
                 'Bugzilla_login': settings.BUGZILLA_USERNAME,
                 'Bugzilla_password': settings.BUGZILLA_PASSWORD,
             } ]),
@@ -112,8 +142,8 @@ class TimeCard(models.Model):
     def get_anchor(self):
         return '<a href="{0}">{1}</a>'.format(self.url, self.bug)
 
-    def get_bug_info(self):
-        return self.bug_get('get')['bugs'][0]
+    def get_bug_info(self, bug=None):
+        return self.bug_get(bug, 'get')['bugs'][0]
 
     def post_bug_comment(self, comment):
         params = {
