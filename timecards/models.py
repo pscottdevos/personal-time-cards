@@ -142,8 +142,8 @@ class TimeCard(models.Model):
     def get_anchor(self):
         return '<a href="{0}">{1}</a>'.format(self.url, self.bug)
 
-    def get_bug_info(self, bug=None):
-        return self.bug_get(bug, 'get')['bugs'][0]
+    def get_bug_info(self):
+        return self.bug_get(self.bug, 'get')['bugs'][0]
 
     def post_bug_comment(self, comment):
         params = {
