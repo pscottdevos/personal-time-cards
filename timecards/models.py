@@ -58,7 +58,7 @@ class TimeCard(models.Model):
             if key is None:
                 summary = ''
             else:
-                bugs = cls.bug_get(key, 'get')['bugs']
+                bugs = get_bug(key)['bugs']
                 if bugs:
                     summary = bugs[0]['summary'][:255]
                 else:
@@ -89,21 +89,6 @@ class TimeCard(models.Model):
         return '{0}/show_bug.cgi?id={1}'.format(settings.BUGZILLA_ROOT, self.bug)
 
     @classmethod
-    def bug_get(cls, bug, rpc_method, params=None):
-        url = '{0}/jsonrpc.cgi'.format(settings.BUGZILLA_ROOT)
-        data = {
-            'method': 'Bug.' + rpc_method,
-            'params': json.dumps([ {
-                'ids': [bug],
-                'Bugzilla_login': settings.BUGZILLA_USERNAME,
-                'Bugzilla_password': settings.BUGZILLA_PASSWORD,
-            } ]),
-        }
-        response = requests.get(
-            url=url, params=data, verify=False, timeout=TIMEOUT
-        )
-        return json.loads(response.text)['result']
-
     def bug_post(self, rpc_method, params):
         url = '{0}/jsonrpc.cgi'.format(settings.BUGZILLA_ROOT)
         headers = {'content-type': 'application/json-rpc'}
@@ -143,7 +128,7 @@ class TimeCard(models.Model):
         return '<a href="{0}">{1}</a>'.format(self.url, self.bug)
 
     def get_bug_info(self):
-        return self.bug_get(self.bug, 'get')['bugs'][0]
+        return get_bug(self.bug)['bugs'][0]
 
     def post_bug_comment(self, comment):
         params = {
@@ -202,3 +187,20 @@ class TimeCard(models.Model):
 
     def __unicode__(self):
         return '%s: %s-%s' % (self.date, self.start, self.end)
+
+
+def get_bug(bug, params=None):
+    url = '{0}/jsonrpc.cgi'.format(settings.BUGZILLA_ROOT)
+    data = {
+        'method': 'Bug.get',
+        'params': json.dumps([ {
+            'ids': [bug],
+            'Bugzilla_login': settings.BUGZILLA_USERNAME,
+            'Bugzilla_password': settings.BUGZILLA_PASSWORD,
+        } ]),
+    }
+    response = requests.get(
+        url=url, params=data, verify=False, timeout=TIMEOUT
+    )
+    return json.loads(response.text)['result']
+
