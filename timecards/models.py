@@ -154,28 +154,27 @@ class TimeCard(models.Model):
             self.start = end
 
         if self.bug:
-            if not self.bug_summary or self.bug_summary == self.NO_BUG_SUMMARY:
+            try:
+                self.update_bug_info()
+                # hey it worked! lets see if there is anything else that could use updating while we are at it.
                 try:
-                    self.update_bug_info()
-                    # hey it worked! lets see if there is anything else that could use updating while we are at it.
-                    try:
-                        needy_cards = TimeCard.objects.exclude(bug=None).exclude(id=self.id).filter(
-                            Q(bug_summary=None) | Q(bug_summary=self.NO_BUG_SUMMARY)
-                        )
-                        for card in needy_cards:
-                            card.update_bug_info()
-                        needy_cards = TimeCard.objects.exclude(id=self.id).filter(add_to_bug_comments=True).exclude(
-                            bug_comment_added=True
-                        ).exclude(Q(description='') | Q(description=None))
-                        for card in needy_cards:
-                            card.update_bug_info()
-                    except Exception:
-                        import traceback
-                        logger.error(traceback.format_exc())
+                    needy_cards = TimeCard.objects.exclude(bug=None).exclude(id=self.id).filter(
+                        Q(bug_summary=None) | Q(bug_summary=self.NO_BUG_SUMMARY)
+                    )
+                    for card in needy_cards:
+                        card.update_bug_info()
+                    needy_cards = TimeCard.objects.exclude(id=self.id).filter(add_to_bug_comments=True).exclude(
+                        bug_comment_added=True
+                    ).exclude(Q(description='') | Q(description=None))
+                    for card in needy_cards:
+                        card.update_bug_info()
                 except Exception:
                     import traceback
                     logger.error(traceback.format_exc())
-                    self.bug_summary = self.NO_BUG_SUMMARY
+            except Exception:
+                import traceback
+                logger.error(traceback.format_exc())
+                self.bug_summary = self.NO_BUG_SUMMARY
             if self.bug_comment_added:
                 self.add_to_bug_comments = True
             elif self.add_to_bug_comments and self.description.strip():
