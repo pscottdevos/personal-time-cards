@@ -2,6 +2,7 @@ import csv
 import json
 import logging
 import requests
+import traceback
 
 from datetime import date, datetime, time, timedelta
 from django.conf import settings
@@ -163,16 +164,16 @@ class TimeCard(models.Model):
                     )
                     for card in needy_cards:
                         card.update_bug_info()
+                        card.save(handle_needy_cards=False)
                     needy_cards = TimeCard.objects.exclude(id=self.id).filter(add_to_bug_comments=True).exclude(
                         bug_comment_added=True
                     ).exclude(Q(description='') | Q(description=None))
                     for card in needy_cards:
                         card.update_bug_info()
+                        card.save(handle_needy_cards=False)
                 except Exception:
-                    import traceback
                     logger.error(traceback.format_exc())
             except Exception:
-                import traceback
                 logger.error(traceback.format_exc())
                 self.bug_summary = self.NO_BUG_SUMMARY
             if self.bug_comment_added:
@@ -184,10 +185,15 @@ class TimeCard(models.Model):
 
     def update_bug_info(self):
         if self.bug:
-            self.bug_summary = self.get_bug_info()['summary'][:255]
+            try:
+                self.bug_summary = self.get_bug_info()['summary'][:255]
+            except:
+                logger.error(traceback.format_exc())
+                self.bug_summary = self.NO_BUG_SUMMARY
+                return False
         if self.add_to_bug_comments and not self.bug_comment_added and self.description:
             self.bug_comment_added = self.post_bug_coment() == 200
-        self.save(handle_needy_cards=False)
+        return True
 
     def __unicode__(self):
         return '%s: %s-%s' % (self.date, self.start, self.end)
