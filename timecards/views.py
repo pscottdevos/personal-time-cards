@@ -1,9 +1,14 @@
 import csv
+import logging
+import traceback
 from datetime import date, timedelta
 from django.db.models import Count
 from django.http import HttpResponse
 from django.shortcuts import render
 from timecards import models
+
+
+logger = logging.getLogger(__name__)
 
 # Create your views here.
 
@@ -45,3 +50,14 @@ def last_month_report_view(request):
         rows += week_rows
     [ writer.writerow(row) for row in rows ]
     return response
+
+
+def update_bug_info_view(request):
+    """Update the bug info on every card"""
+    response = HttpResponse()
+    for card in models.TimeCard.objects.exclude(bug=None):
+        try:
+            card.update_bug_info()
+        except:
+            logger.error(traceback.format_exc())
+    return HttpResponse(status=204)

@@ -130,10 +130,10 @@ class TimeCard(models.Model):
     def get_bug_info(self):
         return get_bug(self.bug)['bugs'][0]
 
-    def post_bug_comment(self, comment):
+    def post_bug_comment(self):
         params = {
             'id': self.bug,
-            'comment': comment,
+            'comment': self.description.strip(),
         }
         return self.bug_post('add_comment', params).status_code
 
@@ -156,21 +156,19 @@ class TimeCard(models.Model):
         if self.bug:
             if not self.bug_summary or self.bug_summary == self.NO_BUG_SUMMARY:
                 try:
-                    self.bug_summary = self.get_bug_info()['summary'][:255]
+                    self.update_bug_info()
                     # hey it worked! lets see if there is anything else that could use updating while we are at it.
                     try:
                         needy_cards = TimeCard.objects.exclude(bug=None).exclude(id=self.id).filter(
                             Q(bug_summary=None) | Q(bug_summary=self.NO_BUG_SUMMARY)
                         )
                         for card in needy_cards:
-                            card.bug_summary = card.get_bug_info()['summary'][:255]
-                            card.save(handle_needy_cards=False)
+                            card.update_bug_info()
                         needy_cards = TimeCard.objects.exclude(id=self.id).filter(add_to_bug_comments=True).exclude(
                             bug_comment_added=True
                         ).exclude(Q(description='') | Q(description=None))
                         for card in needy_cards:
-                            card.bug_comment_added = card.post_bug_comment(self.description.strip()) == 200
-                            card.save(handle_needy_cards=False)
+                            card.update_bug_info()
                     except Exception:
                         import traceback
                         logger.error(traceback.format_exc())
@@ -181,12 +179,22 @@ class TimeCard(models.Model):
             if self.bug_comment_added:
                 self.add_to_bug_comments = True
             elif self.add_to_bug_comments and self.description.strip():
-                self.bug_comment_added = self.post_bug_comment(self.description.strip()) == 200 
+                self.bug_comment_added = self.post_bug_comment() == 200 
 
         super(TimeCard, self).save()
 
+    def update_bug_info(self):
+        if self.bug:
+            self.bug_summary = self.get_bug_info()['summary'][:255]
+        if self.add_to_bug_comments and not self.bug_comment_added and self.description:
+            self.bug_comment_added = self.post_bug_coment() == 200
+        self.save(handle_needy_cards=False)
+
     def __unicode__(self):
         return '%s: %s-%s' % (self.date, self.start, self.end)
+
+
+
 
 
 def get_bug(bug, params=None):

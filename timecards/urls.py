@@ -6,5 +6,6 @@ urlpatterns = patterns('',
     # url(r'^$', 'ga.views.home', name='home'),
     # url(r'^blog/', include('blog.urls')),
 
-    url(r'last_month/$', views.last_month_report_view, {}, 'last_month_report'),
+    url(r'last_month_report/$', views.last_month_report_view, {}, 'last_month_report'),
+    url(r'update_bug_info/$', views.update_bug_info_view, {}, 'update_bug_info'),
 )
