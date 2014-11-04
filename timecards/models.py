@@ -39,6 +39,8 @@ def subtract_from_date(dt, months=0, weeks=0, days=0):
 class TimeCard(models.Model):
     """Time Card Entries"""
 
+    bugzilla = False
+
     bug = models.IntegerField(blank=True, null=True)
     bug_summary = models.CharField(max_length=255, blank=True)
     add_to_bug_comments = models.BooleanField(default=False)
@@ -155,9 +157,9 @@ class TimeCard(models.Model):
             self.start = end
 
         if self.bug:
-            try:
-                self.update_bug_info()
-                # hey it worked! lets see if there is anything else that could use updating while we are at it.
+            self.update_bug_info()
+            # hey it worked! lets see if there is anything else that could use updating while we are at it.
+            if self.bugzilla:
                 try:
                     needy_cards = TimeCard.objects.exclude(bug=None).exclude(id=self.id).filter(
                         Q(bug_summary=None) | Q(bug_summary=self.NO_BUG_SUMMARY)
@@ -173,27 +175,25 @@ class TimeCard(models.Model):
                         card.save(handle_needy_cards=False)
                 except Exception:
                     logger.error(traceback.format_exc())
-            except Exception:
-                logger.error(traceback.format_exc())
-                self.bug_summary = self.NO_BUG_SUMMARY
             if self.bug_comment_added:
                 self.add_to_bug_comments = True
             elif self.add_to_bug_comments and self.description.strip():
                 self.bug_comment_added = self.post_bug_comment() == 200 
-
         super(TimeCard, self).save()
+
 
     def update_bug_info(self):
         if self.bug:
             try:
                 self.bug_summary = self.get_bug_info()['summary'][:255]
+                self.bugzilla = True
             except:
                 logger.error(traceback.format_exc())
-                self.bug_summary = self.NO_BUG_SUMMARY
-                return False
+                self.bug_summary = self.NO_BUG_SUMMARY if not self.bug_summary else self.bug_summary
+                self.bugzilla = False
         if self.add_to_bug_comments and not self.bug_comment_added and self.description:
             self.bug_comment_added = self.post_bug_coment() == 200
-        return True
+        super(TimeCard, self).save()
 
     def __unicode__(self):
         return '%s: %s-%s' % (self.date, self.start, self.end)
