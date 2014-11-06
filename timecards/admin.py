@@ -7,7 +7,7 @@ from django.db.models import Sum
 
 class TimeCardAdmin(admin.ModelAdmin):
     fields = ( 'date', 'start', 'end', 'bug', 'bug_summary', 'add_to_bug_comments', 'description', )
-    list_display = ( 'date', 'start', 'end', 'anchor', 'short_description', )
+    list_display = ( 'date', 'start', 'end', 'anchor', 'bug_summary', 'short_description', )
     ordering = ('-date', '-start')
     readonly_fields = ('bug_summary',)
 
