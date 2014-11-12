@@ -91,7 +91,6 @@ class TimeCard(models.Model):
     def url(self):
         return '{0}/show_bug.cgi?id={1}'.format(settings.BUGZILLA_ROOT, self.bug)
 
-    @classmethod
     def bug_post(self, rpc_method, params):
         url = '{0}/jsonrpc.cgi'.format(settings.BUGZILLA_ROOT)
         headers = {'content-type': 'application/json-rpc'}
@@ -192,7 +191,7 @@ class TimeCard(models.Model):
                 self.bug_summary = self.NO_BUG_SUMMARY if not self.bug_summary else self.bug_summary
                 self.bugzilla = False
         if self.add_to_bug_comments and not self.bug_comment_added and self.description:
-            self.bug_comment_added = self.post_bug_coment() == 200
+            self.bug_comment_added = self.post_bug_comment() == 200
         super(TimeCard, self).save()
 
     def __unicode__(self):
