@@ -47,7 +47,7 @@ class TimeCard(models.Model):
     bug_comment_added = models.BooleanField(default=False)
     date = models.DateField(blank=False)
     start = models.TimeField(blank=True, unique_for_date='date')
-    end = models.TimeField(blank=False, unique_for_date='date')
+    end = models.TimeField(blank=True, null=True, unique_for_date='date')
     description = models.TextField(blank=True)
 
     @classmethod
@@ -118,6 +118,10 @@ class TimeCard(models.Model):
                 )
             else:
                 start = priors.aggregate(end=models.Max('end'))['end']
+        elif priors.filter(end__isnull=True):
+                raise exceptions.ValidationError(
+                    'You must close prior time cards before entering a new one'
+                )
         else:
             start = self.start
 
