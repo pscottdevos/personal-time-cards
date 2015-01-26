@@ -44,11 +44,15 @@ def last_month_report_view(request):
             cards = models.TimeCard.objects.filter(date__gte=week[0], date__lte=week[1], bug=bug['id'])
             hours = sum([ card.hours for card in cards ])
             week_rows.append(
-                [ bug['product'], bug['component'], bug['id'], bug['summary'] ] +
+                [ bug['product'].encode('utf-8'), bug['component'].encode('utf-8'),
+                  bug['id'], bug['summary'].encode('utf-8') ] +
                 [ (hours if week == weeks[i] else '') for i, w in enumerate(weeks) ])
         week_rows.sort()
         rows += week_rows
-    [ writer.writerow(row) for row in rows ]
+    for row in rows:
+        print row[3], type(row[3])
+        writer.writerow(row)
+    #[ writer.writerow(row) for row in rows ]
     return response
 
 
