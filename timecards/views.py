@@ -73,9 +73,14 @@ def last_month_report_view(request):
                     for i, w in enumerate(weeks) ])
         week_rows.sort()
         rows += week_rows
-    for row in rows:
+    for i, row in enumerate(rows):
         print row[3], type(row[3])
         writer.writerow(row)
+
+    writer.writerow(['', '', '', '',]  + [
+        '=sum({0}2:{0}{1})'.format('EFGHIJ'[n], i+2)
+        for n, w in enumerate(weeks) ] + [
+        '=sum(E{0}:{1}{0})'.format(i+3, 'EFGHIJ'[len(weeks)-1]) ])
     #[ writer.writerow(row) for row in rows ]
     return response
 
