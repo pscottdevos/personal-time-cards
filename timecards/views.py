@@ -57,8 +57,50 @@ months = [
 def week_name(week):
     return '%s %s-%s' % (months[week[0].month], week[0].day, week[1].day)
 
-def last_month_report_view(request):
+def this_week_report_view(request):
+    response = HttpResponse(content_type='text/csv')
+    response['Content-Disposition'] = ('attachment; filename=hours.{0}'
+        .format(Writer.extension))
 
+    writer = Writer(response)
+
+    today = date.today()
+    first_of_week = today - timedelta(days=today.weekday() + 1) 
+    weeks = [ [first_of_week, today] ]
+
+    write_week_headers(writer, weeks)
+
+    write_week_rows(writer, weeks)
+    return response
+
+def this_month_report_view(request):
+    response = HttpResponse(content_type='text/csv')
+    response['Content-Disposition'] = ('attachment; filename=hours.{0}'
+        .format(Writer.extension))
+
+    writer = Writer(response)
+
+    today = date.today()
+    first_of_month = date(today.year, today.month, 1)
+    weeks = [ [
+        first_of_month,
+        first_of_month + timedelta(days=(6 - first_of_month.weekday()))] ]
+    for i in range(1, 5):
+        weeks.append( [
+            weeks[i-1][1] + timedelta(days=1),
+            weeks[i-1][1] + timedelta(days=7)] )
+    weeks[4][1] = today
+    while weeks[-1][0] > today:
+        weeks.pop()
+
+    write_week_headers(writer, weeks)
+
+    write_week_rows(writer, weeks)
+    return response
+
+
+
+def last_month_report_view(request):
     response = HttpResponse(content_type='text/csv')
     response['Content-Disposition'] = ('attachment; filename=hours.{0}'
         .format(Writer.extension))
