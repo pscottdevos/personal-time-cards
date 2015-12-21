@@ -10,6 +10,7 @@ class TimeCardAdmin(admin.ModelAdmin):
     list_display = ( 'date', 'start', 'end', 'anchor', 'bug_summary', 'short_description', )
     ordering = ('-date', '-start')
     readonly_fields = ('bug_summary',)
+    search_fields = ('bug_summary', 'description')
 
     def anchor(self, object):
         return object.get_anchor()
