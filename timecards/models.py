@@ -219,4 +219,3 @@ def get_bug(bug, params=None):
         url=url, params=data, verify=False, timeout=TIMEOUT
     )
     return json.loads(response.text)['result']
-

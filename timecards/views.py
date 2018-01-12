@@ -65,12 +65,73 @@ def this_week_report_view(request):
     writer = Writer(response)
 
     today = date.today()
-    first_of_week = today - timedelta(days=today.weekday() + 1) 
+    first_of_week = today - timedelta(days=today.weekday() + 3)
     weeks = [ [first_of_week, today] ]
 
     write_week_headers(writer, weeks)
 
     write_week_rows(writer, weeks)
+    return response
+
+def timesheet_report(request):
+    response = HttpResponse(content_type='text/csv')
+    response['Content-Disposition'] = ('attachment; filename=hours.{0}'
+        .format(Writer.extension))
+
+    writer = Writer(response)
+
+    today = date.today()
+    first_of_week = today - timedelta(days=today.weekday() + 3)
+
+    writer.writerow([
+        '', '', '', '', '', 'Weekly time report'])
+    writer.writerow(['', 'P. Scott DeVos'])
+    writer.writerow([])
+    writer.writerow([
+        '',
+        'Employee:',
+        'P. Scott DeVos',
+        '',
+        'Employee phone:',
+        '414-698-7047'])
+    writer.writerow([
+        '',
+        'Manager:',
+        'David Barrios',
+        '',
+        'Employee email:',
+        'scott.devos@sykes.com'])
+    writer.writerow([])
+    writer.writerow(['', today.strftime('%D')])
+    writer.writerow([])
+    writer.writerow([
+        '',
+        'Day',
+        '',
+        'Project OneSykes',
+        'Non-PRoject Meetings',
+        'Non-Project Tasks / PTO',
+        'Travel',
+        'Total'])
+
+    day = first_of_week
+    row = 10
+    while day <= today:
+        writer.writerow(
+            [''] + get_row_for_day(day) + ['=sum(D{0}:G{0})'.format(row) ])
+        day += timedelta(days=1)
+        row += 1
+    writer.writerow(['', '', 'Total hours'] + [
+        '=sum({0}10:{0}16)'.format(col) for col in 'DEFGH'])
+    writer.writerow(['', '', 'Rate per hour'])
+    writer.writerow(['', '', 'Total pay'])
+    writer.writerow([])
+    writer.writerow(
+        ['', '', '', 'P. Scott DeVos', '', '', '', today.strftime('%D')])
+    writer.writerow(['', '', '', 'Employee signature', '', '', '', 'Date'])
+    writer.writerow([])
+    writer.writerow(['', '', '', 'Manager signature', '', '', '', 'Date'])
+    writer.close()
     return response
 
 def this_month_report_view(request):
@@ -148,6 +209,59 @@ def write_week_rows(writer, weeks):
         '=sum(E{0}:{1}{0})'.format(i+3, 'EFGHIJ'[len(weeks)-1]) ])
     writer.close()
 
+def parse_time_card(time_card, project, meeting, tasks, travel, with_bug):
+    description = time_card.description.lower()
+    hours = time_card.hours
+    if with_bug and 'non project' in description:
+        tasks += hours
+    elif not with_bug and 'non project' in description:
+        meeting += hours
+    elif 'meeting' in description or 'stand' in description:
+        if with_bug:
+            project += hours
+        else:
+            meeting += hours
+    elif 'travel' in description:
+        travel += hours
+    else:
+        tasks += hours
+    return project, meeting, tasks, travel
+
+def get_row_for_day(day):
+    time_cards = models.TimeCard.objects.filter(date=day)
+    print day.strftime('%D'), time_cards.count(), sum([ tc.hours for tc in time_cards])
+    project = 0.0
+    meeting = 0.0
+    tasks = 0.0
+    travel = 0.0
+    for time_card in time_cards:
+        if time_card.bug is None:
+            project, meeting, tasks, travel = parse_time_card(
+                time_card, project, meeting, tasks, travel, False)
+        else:
+            #try:
+            bug_data = models.get_bug(time_card.bug)
+            #except:
+            #    print("Could not get bug {0}".format(time_card.bug))
+            #    bug_data = None
+            if bug_data and bug_data.get('bugs'):
+                bug = bug_data['bugs'][0]
+                if (bug['product'] == 'Maestro' and
+                        bug['severity'] == 'enhancement'):
+                    project += time_card.hours
+                else:
+                    tasks += time_card.hours
+            else:
+                project, meeting, tasks, travel = parse_time_card(
+                    time_card, project, meeting, tasks, travel, True)
+    project = project or ''
+    meeting = meeting or ''
+    tasks = tasks or ''
+    travel = travel or ''
+    return [
+        day.strftime('%A'), day.strftime('%D'), project, meeting, tasks, travel
+    ]
+
 def get_rows_for_week(week, weeks):
     start, end = week
     bugs = (models.TimeCard.objects
@@ -156,6 +270,10 @@ def get_rows_for_week(week, weeks):
         .values('bug')
         .annotate(Count('id')).order_by('bug'))
     week_rows = []
+    try:
+       [ models.get_bug(item['bug'])['bugs'][0] for item in bugs ]
+    except:
+        import ipdb; ipdb.set_trace()
     for bug in ([
             models.get_bug(item['bug'])['bugs'][0] for item in bugs ] +
             [ {
