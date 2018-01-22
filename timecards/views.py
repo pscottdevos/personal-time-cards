@@ -109,7 +109,7 @@ def timesheet_report(request):
         'Day',
         '',
         'Project OneSykes',
-        'Non-PRoject Meetings',
+        'Non-Project Meetings',
         'Non-Project Tasks / PTO',
         'Travel',
         'Total'])
@@ -216,6 +216,8 @@ def parse_time_card(time_card, project, meeting, tasks, travel, with_bug):
         tasks += hours
     elif not with_bug and 'non project' in description:
         meeting += hours
+    elif 'onesykes' in description:
+        project += hours
     elif 'meeting' in description or 'stand' in description:
         if with_bug:
             project += hours
@@ -246,7 +248,10 @@ def get_row_for_day(day):
             #    bug_data = None
             if bug_data and bug_data.get('bugs'):
                 bug = bug_data['bugs'][0]
-                if (bug['product'] == 'Maestro' and
+                if ((
+                            bug['product'] == 'DARI' or
+                            bug['product'] == 'Maestro' or
+                            bug['product'] == 'porpoiseflow') and
                         bug['severity'] == 'enhancement'):
                     project += time_card.hours
                 else:
