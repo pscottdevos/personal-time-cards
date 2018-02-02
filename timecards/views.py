@@ -65,7 +65,7 @@ def this_week_report_view(request):
     writer = Writer(response)
 
     today = date.today()
-    first_of_week = today - timedelta(days=today.weekday() + 3)
+    first_of_week = today - timedelta(days=today.weekday() + 2)
     weeks = [ [first_of_week, today] ]
 
     write_week_headers(writer, weeks)
